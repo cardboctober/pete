@@ -1,0 +1,27 @@
+{
+  "name": "cardboctober-pete",
+  "private": true,
+  "version": "0.0.0",
+  "description": "",
+  "scripts": {
+    "postinstall": "bower install && gulp build"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "bower": "1.7.6",
+    "browserify": "13.0.0",
+    "browserify-shim": "3.8.12",
+    "gulp": "3.9.0",
+    "gulp-cli": "1.1.0",
+    "through2": "2.0.0"
+  },
+  "browserify": {
+    "transform": [
+      "browserify-shim"
+    ]
+  },
+  "browserify-shim": {
+    "three": "global:THREE",
+    "lodash": "global:_"
+  }
+}

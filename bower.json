@@ -1,0 +1,22 @@
+{
+  "name": "cardboctober-pete",
+  "private": true,
+  "authors": [
+    "peterjwest <peterjwest3@gmail.com>",
+    "benfoxall <benfoxall@gmail.com>"
+  ],
+  "homepage": "https://github.com/whiteoctober/christmas",
+  "private": true,
+  "dependencies": {
+    "es6-promise": "3.0.2",
+    "fastclick": "1.0.6",
+    "fulltilt": "0.5.3",
+    "lodash": "3.10.1",
+    "orientationchange": "https://github.com/jlubean/orientationchange.git#4054025153715df588b08482e36e1e0be283c23f",
+    "webvr-polyfill": "https://github.com/borismus/webvr-polyfill.git#0.2.3",
+    "threejs": "threejs#r73"
+  },
+  "resolutions": {
+    "threejs": "r73"
+  }
+}
