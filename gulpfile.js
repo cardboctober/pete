@@ -1,9 +1,10 @@
 var gulp = require('gulp');
 var browserify = require('browserify');
 var through2 = require('through2');
+var concat = require('gulp-concat');
 
 gulp.task('build', function() {
-  gulp.src('[0-9][0-9]/*.js')
+  return gulp.src('[0-9][0-9]/*.js')
     .pipe(through2.obj(function(file, enc, next) {
       browserify(file.path)
         .ignore('three')
@@ -12,9 +13,25 @@ gulp.task('build', function() {
           next(null, file);
         });
     }))
-    .pipe(gulp.dest('./build/'));
+    .pipe(gulp.dest('build/'));
+});
+
+gulp.task('vendors', function() {
+  return gulp.src([
+    'bower_components/es6-promise/promise.js',
+    'bower_components/fulltilt/dist/fulltilt.js',
+    'bower_components/threejs/build/three.js',
+    'bower_components/webvr-polyfill/build/webvr-polyfill.js',
+    'bower_components/lodash/lodash.js',
+    'bower_components/threejs/examples/js/effects/StereoEffect.js',
+    'bower_components/socket.io-client/socket.io.js',
+    'bower_components/fastclick/lib/fastclick.js',
+    'bower_components/orientationchange/orientationchange.js',
+  ])
+    .pipe(concat('vendors.js'))
+    .pipe(gulp.dest('build/'));
 });
 
 gulp.task('watch', ['build'], function() {
-  gulp.watch(['[0-9][0-9]/*.js', 'lib/**/*.js'], ['build']);
+  return gulp.watch(['[0-9][0-9]/*.js', 'lib/**/*.js'], ['build']);
 });
