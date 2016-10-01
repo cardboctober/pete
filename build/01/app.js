@@ -227,8 +227,6 @@ resize();
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"../lib/three-utils":2}],2:[function(require,module,exports){
 module.exports = function(THREE) {
-  THREE.TETRAHEDRON_ANGLE = Math.atan(2 / Math.sqrt(2));
-
   THREE.Object3D.prototype.setVisible = function(visible) {
     return this.traverse(function(object) { object.visible = visible; });
   };
