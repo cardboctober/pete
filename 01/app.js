@@ -76,10 +76,10 @@ object.add(cog1);
 object.add(cog2);
 object.add(cog3);
 
+object.setVisible(false);
+
 var chosen = false;
 var started = false;
-var game = false;
-var explode = false;
 
 var scene = new THREE.Scene();
 var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -119,6 +119,10 @@ var previousLateralDirection = across.clone().multiplyScalar(-1);
 var angleOffset = 0;
 
 var render = function(time) {
+  if (started) {
+    object.setVisible(true);
+  }
+
   if (sensor) {
     camera.quaternion.copy(sensor.getState().orientation);
   }
