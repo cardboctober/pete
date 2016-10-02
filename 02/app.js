@@ -164,8 +164,8 @@ object.add(stars);
 object.setVisible(false);
 scene.add(object);
 
-var chosen = true;
-var started = true;
+var chosen = false;
+var started = false;
 
 var pixelRatio = window.devicePixelRatio || 1;
 
