@@ -199,9 +199,9 @@ var render = function(time) {
     camera.quaternion.copy(sensor.getState().orientation);
   }
 
-  stars.rotation.z = stars.rotation.z + Math.PI / 20000;
+  stars.rotation.z = stars.rotation.z + Math.PI / 15000;
   stars.position.y = stars.position.y + 0.03;
-  earth.rotation.z = earth.rotation.z + Math.PI / 20000;
+  earth.rotation.z = earth.rotation.z + Math.PI / 15000;
   earth.position.y = earth.position.y + 0.03;
   clouds.rotation.y = clouds.rotation.x + Math.PI / 35000;
   clouds2.rotation.y = clouds2.rotation.y + Math.PI / 40000;
