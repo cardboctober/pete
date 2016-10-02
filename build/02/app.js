@@ -114,7 +114,7 @@ scene.add(light);
 var earth = new THREE.Object3D();
 object.add(earth);
 earth.scale.set(150, 150, 150);
-earth.position.z = -600;
+earth.position.z = -700;
 earth.position.y = 150;
 
 var earthGeometry = new THREE.SphereGeometry(1, 32, 32);
@@ -202,10 +202,8 @@ var render = function(time) {
   }
 
   stars.rotation.z = stars.rotation.z + Math.PI / 20000;
-  stars.rotation.y = stars.rotation.y - Math.PI / 20000;
   stars.position.y = stars.position.y + 0.03;
   earth.rotation.z = earth.rotation.z + Math.PI / 20000;
-  earth.rotation.y = earth.rotation.y - Math.PI / 20000;
   earth.position.y = earth.position.y + 0.03;
   clouds.rotation.y = clouds.rotation.x + Math.PI / 35000;
   clouds2.rotation.y = clouds2.rotation.y + Math.PI / 40000;
