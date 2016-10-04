@@ -142,6 +142,20 @@ var cardboard = false;
 
 var gravity = new THREE.Vector3(0, -0.02, 0);
 
+var gravityOn = function() {
+  gravity.y = -0.02;
+};
+
+var gravityOff = function() {
+  gravity.y = 0;
+};
+
+document.querySelector('canvas').addEventListener('mousedown', gravityOff);
+document.querySelector('canvas').addEventListener('mouseup', gravityOn);
+
+document.querySelector('canvas').addEventListener('touchstart', gravityOff);
+document.querySelector('canvas').addEventListener('touchend', gravityOn);
+
 var render = function(time) {
   if (started) {
     object.setVisible(true);
@@ -156,40 +170,45 @@ var render = function(time) {
   camera.position.copy(direction.multiplyScalar(5).sub(stance));
 
   balls.map(function(ball) {
-    if (Math.abs(ball.velocity.lengthSq()) > 0.000001) {
+    if (!ball.disablePhysics) {
       ball.velocity.add(gravity);
 
       ball.rotation.x = ball.rotation.x + ball.angularVelocity.y;
       ball.rotation.y = ball.rotation.y + ball.angularVelocity.z;
       ball.rotation.z = ball.rotation.z + ball.angularVelocity.x;
-    }
 
-    ball.position.add(ball.velocity);
+      ball.position.add(ball.velocity);
 
-    building.children.forEach(function(child) {
-      detectSphereCollision(ball, child, function(normal, overshoot) {
-        var overshootRatio = overshoot / ball.velocity.length();
-        ball.position.sub(ball.velocity.clone().multiplyScalar(overshootRatio));
-        ball.velocity.reflect(normal).multiplyScalar(0.95);
-        ball.position.add(ball.velocity.clone().multiplyScalar(overshootRatio));
-        ball.angularVelocity = ball.velocity.clone().multiplyScalar(0.1);
+      building.children.forEach(function(child) {
+        detectSphereCollision(ball, child, function(normal, overshoot) {
+          var overshootRatio = overshoot / ball.velocity.length();
+          ball.position.sub(ball.velocity.clone().multiplyScalar(overshootRatio));
+          ball.velocity.reflect(normal).multiplyScalar(0.95);
+          ball.position.add(ball.velocity.clone().multiplyScalar(overshootRatio));
+          ball.angularVelocity = ball.velocity.clone().multiplyScalar(0.1);
+
+          if (Math.abs(ball.velocity.lengthSq()) < 0.0001) {
+            console.log(1);
+            ball.disablePhysics = true;
+          }
+        });
       });
-    });
 
-    balls.map(function(ball2) {
-      if (ball === ball2) return;
+      balls.map(function(ball2) {
+        if (ball === ball2) return;
 
-      var diff = ball.position.clone().sub(ball2.position);
-      var dist = diff.length();
-      if (dist < radius * 2) {
-        var normal = diff.normalize();
-        var overshootRatio = (radius * 2 - dist) / ball.velocity.length();
-        ball.position.sub(ball.velocity.clone().multiplyScalar(overshootRatio));
-        ball.velocity.reflect(normal).multiplyScalar(0.95);
-        ball.position.add(ball.velocity.clone().multiplyScalar(overshootRatio));
-        ball.angularVelocity = ball.velocity.clone().multiplyScalar(0.1);
-      }
-    });
+        var diff = ball.position.clone().sub(ball2.position);
+        var dist = diff.length();
+        if (dist < radius * 2) {
+          var normal = diff.normalize();
+          var overshootRatio = (radius * 2 - dist) / ball.velocity.length();
+          ball.position.sub(ball.velocity.clone().multiplyScalar(overshootRatio));
+          ball.velocity.reflect(normal).multiplyScalar(0.95);
+          ball.position.add(ball.velocity.clone().multiplyScalar(overshootRatio));
+          ball.angularVelocity = ball.velocity.clone().multiplyScalar(0.1);
+        }
+      });
+    }
   });
 
   cardboard && window.orientation !== 0 ? effect.render(scene, camera) : renderer.render(scene, camera);
