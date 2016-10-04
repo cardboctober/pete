@@ -27,6 +27,7 @@ gulp.task('vendors', function() {
     'bower_components/socket.io-client/socket.io.js',
     'bower_components/fastclick/lib/fastclick.js',
     'bower_components/orientationchange/orientationchange.js',
+    'bower_components/fulltilt/dist/fulltilt.js',
   ])
     .pipe(concat('vendors.js'))
     .pipe(gulp.dest('build/'));
