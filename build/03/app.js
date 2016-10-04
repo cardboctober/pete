@@ -146,13 +146,11 @@ var gravity = new THREE.Vector3(0, -0.02, 0);
 
 var gravityOn = function(e) {
   e.preventDefault();
-  e.stopPropagation();
   gravity.y = -0.02;
 };
 
 var gravityOff = function(e) {
   e.preventDefault();
-  e.stopPropagation();
   gravity.y = 0;
 };
 
