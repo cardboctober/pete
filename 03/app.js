@@ -142,11 +142,15 @@ var cardboard = false;
 
 var gravity = new THREE.Vector3(0, -0.02, 0);
 
-var gravityOn = function() {
+var gravityOn = function(e) {
+  e.preventDefault();
+  e.stopPropagation();
   gravity.y = -0.02;
 };
 
-var gravityOff = function() {
+var gravityOff = function(e) {
+  e.preventDefault();
+  e.stopPropagation();
   gravity.y = 0;
 };
 
@@ -188,7 +192,6 @@ var render = function(time) {
           ball.angularVelocity = ball.velocity.clone().multiplyScalar(0.1);
 
           if (Math.abs(ball.velocity.lengthSq()) < 0.0001) {
-            console.log(1);
             ball.disablePhysics = true;
           }
         });
