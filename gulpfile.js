@@ -28,6 +28,7 @@ gulp.task('vendors', function() {
     'bower_components/fastclick/lib/fastclick.js',
     'bower_components/orientationchange/orientationchange.js',
     'bower_components/fulltilt/dist/fulltilt.js',
+    'bower_components/noisejs/index.js',
   ])
     .pipe(concat('vendors.js'))
     .pipe(gulp.dest('build/'));
