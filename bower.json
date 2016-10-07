@@ -14,9 +14,6 @@
     "lodash": "3.10.1",
     "orientationchange": "https://github.com/jlubean/orientationchange.git#4054025153715df588b08482e36e1e0be283c23f",
     "webvr-polyfill": "https://github.com/borismus/webvr-polyfill.git#0.2.3",
-    "threejs": "threejs#r73"
-  },
-  "resolutions": {
-    "threejs": "r73"
+    "threejs": "threejs#r81"
   }
 }
