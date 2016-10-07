@@ -243,7 +243,7 @@ var render = function(time) {
 
     balloons.map(function(balloon) {
       var point = line.closestPointToPoint(balloon.position, true);
-      if (point.sub(balloon.position).lengthSq() < 1) {
+      if (point.sub(balloon.position).lengthSq() < 4) {
         object.remove(balloon);
       }
     });
