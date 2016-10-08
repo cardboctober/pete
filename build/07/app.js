@@ -16,14 +16,14 @@ var createPlanet = function() {
   var planet = new THREE.Mesh(sphereGeometry, material);
   planet.radius = Math.random() * 5 + 0.5;
   planet.scale.multiplyScalar(planet.radius);
-  planet.position.copy(THREE.Vector3.randomUnit()).multiplyScalar(Math.random() * 100);
+  planet.position.copy(THREE.Vector3.randomUnit()).multiplyScalar(Math.random() * 200);
   planet.velocity = new THREE.Vector3(0, 1, 0).cross(planet.position).multiplyScalar(0.01);
   planet.volume = volume;
   object.add(planet);
   return planet;
 }
 
-var planets = _.times(12, createPlanet);
+var planets = _.times(24, createPlanet);
 
 var chosen = false;
 var started = false;
