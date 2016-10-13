@@ -47,45 +47,6 @@ groundMaterial.map = THREE.ImageUtils.loadTexture('sand.jpg');
 groundMaterial.map.wrapS = groundMaterial.map.wrapT = THREE.RepeatWrapping;
 groundMaterial.map.repeat.set(repeat, repeat);
 
-var randomNoise = function(width, height) {
-  var noise = document.createElement('canvas');
-  noise.width = width;
-  noise.height = height;
-
-  var context = noise.getContext("2d");
-  var imageData = context.getImageData(0, 0, noise.width, noise.height);
-  var pixels = imageData.data;
-
-  for (var i = 0; i < pixels.length; i += 4) {
-    pixels[i] = pixels[i+1] = pixels[i+2] = (Math.random() * 256) | 0;
-    pixels[i+3] = 255;
-  }
-
-  context.putImageData(imageData, 0, 0);
-  return noise;
-};
-
-var perlinNoise = function(width, height, persistence) {
-  var canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  var context = canvas.getContext('2d');
-
-  var noise = randomNoise(width, height);
-
-  var ratio = width / height;
-
-  /* Scale random iterations onto the canvas to generate Perlin noise. */
-  for (var size = 2; size <= height; size *= 2) {
-    var x = (Math.random() * (width - size)) | 0;
-    var y = (Math.random() * (height - size)) | 0;
-    context.globalAlpha = 1 / persistence / size;
-    context.drawImage(noise, Math.max(x, 0), y, size * ratio, size, 0, 0, width, height);
-  }
-
-  return canvas.getContext('2d').getImageData(0, 0, width, height).data;
-};
-
 var noise = new Noise(Math.random());
 
 var width = 100;
