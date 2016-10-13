@@ -1453,7 +1453,7 @@ var render = function(time) {
     camera.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(THREE.Vector3.randomUnit(), 0.01));
   }
 
-  shaderPass.material.uniforms.velocityFactor.value = 0.8;
+  shaderPass.material.uniforms.velocityFactor.value = party ? 0.8 : 0;
 
   var direction = across.clone().applyQuaternion(camera.quaternion);
   object.position.copy(direction.clone().multiplyScalar(40));
