@@ -74,24 +74,6 @@ for (var i = 0; i < planeGeometry.vertices.length; i++) {
   vertex.z = vertex.z + noise.simplex2(vertex.x / scale, vertex.y / scale) * 1.5;
 }
 
-// var createCircle = function(radius, center, intensity) {
-//   var radiusSq = Math.pow(radius, 2);
-
-//   for (var x = 0; x < width; x++) {
-//     for (var y = 0; y < height; y++) {
-//       var vertex = planeGeometry.vertices[x * height + y];
-//       var position = new THREE.Vector2(vertex.x, vertex.y);
-//       if (position.sub(center).lengthSq() < radiusSq) {
-//         vertex.z = vertex.z + Math.sqrt(radiusSq - position.lengthSq()) * intensity;
-//       }
-//     }
-//   }
-// }
-
-// _.times(30, function() {
-//   createCircle(Math.random() * 20, new THREE.Vector2(Math.random() * 100 - 50, Math.random() * 100 - 50), 0.05);
-// });
-
 var vertex = planeGeometry.vertices[height / 2 + width / 2 * height];
 
 planeGeometry.computeFaceNormals();
@@ -155,11 +137,6 @@ window.renderer = renderer;
 var composer = new THREE.EffectComposer(renderer);
 var renderPass = new THREE.RenderPass(scene, camera);
 composer.addPass(renderPass);
-// composer.getSize = renderer.getSize;
-// composer.clear = renderer.clear;
-// composer.setScissorTest = renderer.setScissorTest;
-// composer.setScissor = renderer.setScissor;
-// composer.setViewport = renderer.setViewport;
 
 var composer2 = new THREE.EffectComposer(renderer);
 composer2.addPass(new THREE.RenderPass(scene, camera));
@@ -216,7 +193,7 @@ var sea = new THREE.Mesh(
 );
 sea.add(water);
 sea.rotation.x = -Math.PI * 0.5;
-sea.position.y = 15;
+sea.position.y = 10;
 
 object.add(sea);
 
@@ -364,17 +341,14 @@ var Boid = function() {
     this.acceleration.add(this.alignment(boids, 3, 0.003));
     this.acceleration.add(this.cohesion(boids, 3, 0.003));
     this.acceleration.add(this.separation(boids, 3, 0.003));
-    this.acceleration.add(this.circle(
-      new THREE.Vector3(0, 4, 0)
-      // new THREE.Vector3(20, 0, 10),
-    , 20, 0.000001));
+    this.acceleration.add(this.circle(new THREE.Vector3(0, 2, 0), 10, 0.000001));
 
     var bed = this.position.clone();
     bed.y = noise.simplex2(bed.x / scale, -bed.z / scale) * 1.5;
     this.acceleration.add(this.avoid(bed, 1.5, 0.003));
 
     var surface = this.position.clone();
-    surface.y = 10;
+    surface.y = 9;
     this.acceleration.add(this.avoid(surface, 1.5, 0.003));
   };
 
