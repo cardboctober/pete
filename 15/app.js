@@ -495,7 +495,7 @@ var Boid = function() {
 var fishes = [];
 var boids = [];
 
-for (var j = 0; j < 300; j ++) {
+for (var j = 0; j < 200; j ++) {
   boid = boids[ j ] = new Boid();
   boid.position.x = Math.random() * 30 - 15;
   boid.position.y = Math.random() * 2 - 1 + 5;
