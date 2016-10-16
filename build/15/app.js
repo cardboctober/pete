@@ -341,9 +341,9 @@ var Boid = function() {
 
   this.flock = function(boids) {
     this.acceleration.add(this.alignment(boids, 3, 0.003));
-    this.acceleration.add(this.cohesion(boids, 3, 0.003));
+    this.acceleration.add(this.cohesion(boids, 3, 0.0028));
     this.acceleration.add(this.separation(boids, 3, 0.003));
-    this.acceleration.add(this.circle(new THREE.Vector3(0, 2, 0), 10, 0.000001));
+    this.acceleration.add(this.circle(new THREE.Vector3(0, -2, 0), 10, 0.0000025));
 
     var bed = this.position.clone();
     bed.y = noise.simplex2(bed.x / scale, -bed.z / scale) * 1.5;
