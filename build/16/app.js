@@ -40,7 +40,6 @@ if (window.location.search) {
 
 } else {
   var randomId = function() {
-    return 'hello';
     var possible = "abcdefghijklmnopqrstuvwxyz";
     return _.times(6, function() {
       return possible.charAt(Math.floor(Math.random() * possible.length));
