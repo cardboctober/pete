@@ -35,5 +35,5 @@ gulp.task('vendors', function() {
 });
 
 gulp.task('watch', ['build'], function() {
-  return gulp.watch(['[0-9][0-9]/*.js', 'lib/**/*.js'], ['build']);
+  return gulp.watch(['[0-9][0-9]/app.js', 'lib/**/*.js'], ['build']);
 });
