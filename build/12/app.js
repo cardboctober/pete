@@ -2,7 +2,6 @@
 (function (global){
 var THREE = require('../lib/three-utils')((typeof window !== "undefined" ? window['THREE'] : typeof global !== "undefined" ? global['THREE'] : null));
 var detectSphereCollision = require('../lib/detect-sphere-collision');
-var flattenObjects = require('../lib/flatten-objects');
 var _ = (typeof window !== "undefined" ? window['_'] : typeof global !== "undefined" ? global['_'] : null);
 
 // Hacked version of Stereo effect
@@ -580,7 +579,7 @@ updateOrientation();
 resize();
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../lib/detect-sphere-collision":2,"../lib/flatten-objects":3,"../lib/three-utils":4}],2:[function(require,module,exports){
+},{"../lib/detect-sphere-collision":2,"../lib/three-utils":3}],2:[function(require,module,exports){
 (function (global){
 var THREE = (typeof window !== "undefined" ? window['THREE'] : typeof global !== "undefined" ? global['THREE'] : null);
 var _ = (typeof window !== "undefined" ? window['_'] : typeof global !== "undefined" ? global['_'] : null);
@@ -636,49 +635,6 @@ module.exports = function(sphere, object, callback) {
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{}],3:[function(require,module,exports){
-(function (global){
-var THREE = (typeof window !== "undefined" ? window['THREE'] : typeof global !== "undefined" ? global['THREE'] : null);
-
-var matrix = new THREE.Matrix4();
-var quaternion = new THREE.Quaternion();
-
-var flattenObject = function(object, root, stack) {
-  root = root || object;
-  stack = stack || [];
-  object.updateMatrix();
-
-  if (!object.preserveHierarchy) {
-    object.children.forEach(function(child) {
-      return flattenObject(child, root, stack.concat([[object.matrix, object.quaternion]]));
-    });
-  }
-
-  if (object.parent) object.parent.remove(object);
-
-  if (object.geometry || object.preserveHierarchy) {
-    matrix.identity();
-    quaternion.set(0, 0, 0, 1);
-
-    stack.forEach(function(item) {
-      matrix.multiply(item[0]);
-      quaternion.multiply(item[1]);
-    });
-
-    object.position.applyMatrix4(matrix);
-    object.quaternion.copy(quaternion.multiply(object.quaternion));
-
-    root.add ? root.add(object) : root.push(object);
-  }
-};
-
-module.exports = function(objects, root) {
-  objects.forEach(function(object) {
-    flattenObject(object, root || object.parent);
-  });
-};
-
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],4:[function(require,module,exports){
 module.exports = function(THREE) {
   THREE.Object3D.prototype.setVisible = function(visible) {
     return this.traverse(function(object) { object.visible = visible; });
