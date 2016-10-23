@@ -1,23 +1,25 @@
-- Teleport
-- Jump
-- Sphere heightmap
-- Posture detection
 - Spaceship
 - Submarine
-- Solar system
-- Flocking
-- Glider
 - Audio detection
-- Planets
 - Messing with cameras
 - Maze
 - Dodgeball
-- 720
-- Hammer!
-- Island - Mario galaxy style
-- Flocking
-- Shout
-- Basketballs in space
-- Cat
 - Kinematics
-- Ascii / greyscale effect
+- Pixel / greyscale effect
+- FISHING
+- Multi-island
+- Spidercat
+- Sunrise
+- Magic spells
+- UX/fullscreen
+- Laser battle
+- Glider
+- Shaders: Blur/water?
+- Portals
+
+22 ! Fullscreen
+23 !
+24 ?
+25
+26
+27 ?

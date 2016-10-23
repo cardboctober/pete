@@ -1,6 +1,22 @@
-var THREE = require('../lib/three-utils')(require('three'));
+var THREE = require('three');
+require('../lib/three-utils');
+require('../lib/stereo-effect');
+require('../lib/three-water');
+require('../lib/postprocessing');
+require('../lib/three-model-loader');
 var _ = require('lodash');
+var FastClick = require('fastclick');
+var VrData = require('../lib/vr-data');
+require('webvr-polyfill');
+var Noise = require('noisejs').Noise;
+var io = require('socket.io-client');
+
+var VRUI = require('../lib/vrui');
 var socket = io.connect('https://cardboctober-sockets.herokuapp.com/');
+
+new FastClick(document.body);
+
+var vrData = new VrData();
 
 var up = new THREE.Vector3(0, 1, 0);
 var forward = new THREE.Vector3(1, 0, 0);
@@ -18,12 +34,12 @@ if (window.location.search) {
   socket.on('connect', function() {
     socket.emit('controller.ready', window.location.search.replace(/^\?/, ''));
 
-    var promise = new FULLTILT.getDeviceOrientation({ type: 'world' });
-    promise.then(function(deviceOrientation) {
-      deviceOrientation.start(function(data) {
-        quaternion.copy(deviceOrientation.getScreenAdjustedQuaternion());
+    window.addEventListener('deviceorientation', function(event) {
+      if (vrData.enabled()) {
+        var data = vrData.getData();
+        quaternion.fromArray(data.orientation);
         controllerMove(quaternion);
-      });
+      }
     });
   });
 
@@ -32,24 +48,10 @@ if (window.location.search) {
     socket.emit('controller.reset', {});
   };
 
-  document.body.addEventListener('mousedown', tap);
-  document.body.addEventListener('touchstart', tap);
+  document.querySelector('.wrapper').addEventListener('mousedown', tap);
+  document.querySelector('.wrapper').addEventListener('touchstart', tap);
 
 } else {
-  var randomId = function() {
-    var possible = "abcdefghijklmnopqrstuvwxyz";
-    return _.times(3, function() {
-      return possible.charAt(Math.floor(Math.random() * possible.length));
-    }).join('');
-  };
-
-  var id = randomId();
-  document.querySelector('.intro-modal.base').style.display = 'block';
-  document.querySelector('.intro-modal.controller').style.display = 'block';
-  var link = document.querySelector('.intro-modal.controller .link');
-  link.href = "https://cardboctober.xyz/pete/17/?" + id;
-  link.textContent = "cardboctober.xyz/pete/17/?" + id;
-
   var object = new THREE.Object3D();
 
   var repeat = 60;
@@ -108,41 +110,52 @@ if (window.location.search) {
   var stars = new THREE.Mesh(cube, starsMaterial);
   object.add(stars);
 
-  var chosen = false;
-  var started = false;
-
   var pixelRatio = window.devicePixelRatio || 1;
 
   var renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(pixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(pixelRatio);
   renderer.setClearColor(0x000000);
-
-  document.body.appendChild(renderer.domElement);
+  document.querySelector('.wrapper').appendChild(renderer.domElement);
 
   var effect = new THREE.StereoEffect(renderer);
-  effect.eyeSeparation = 0.3;
   effect.setSize(window.innerWidth, window.innerHeight);
+  effect.setEyeSeparation(0.1);
 
-  var started = false;
-  var cardboard = false;
+  var resize = function() {
+    var height = window.innerHeight;
+    var width = window.innerWidth;
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    effect.setSize(width, height);
+    renderer.setSize(width, height);
+  };
+
+  window.addEventListener('resize', _.debounce(resize, 50), false);
+  resize();
+
+  var vrui = new VRUI(function(vrui) {
+    document.body.style.minHeight = (window.innerHeight + 100) + 'px';
+    camera.fov = vrui.stereoscopic ? '70' : '60';
+    resize();
+  });
+
+  var randomId = function() {
+    var possible = "abcdefghijklmnopqrstuvwxyz";
+    return _.times(3, function() {
+      return possible.charAt(Math.floor(Math.random() * possible.length));
+    }).join('');
+  };
+
+  var id = randomId();
+  document.querySelector('.intro-modal').style.display = 'none';
+  document.querySelector('.intro-modal.controller').style.display = 'block';
+  var link = document.querySelector('.controller-prompt .link');
+  link.href = "https://cardboctober.xyz/pete/17/?" + id;
+  link.textContent = "cardboctober.xyz/pete/17/?" + id;
 
   var vertex = planeGeometry.vertices[height / 2 + width / 2 * height];
   player.position.y = vertex.z + land.position.y + 0.75;
-
-  var start = function(e) {
-    e.preventDefault();
-  };
-
-  var stop = function(e) {
-    e.preventDefault();
-  };
-
-  document.querySelector('canvas').addEventListener('mousedown', start);
-  document.querySelector('canvas').addEventListener('mouseup', stop);
-
-  document.querySelector('canvas').addEventListener('touchstart', start);
-  document.querySelector('canvas').addEventListener('touchend', stop);
 
   scene.add(object);
 
@@ -204,7 +217,6 @@ if (window.location.search) {
   head.rotation.z = Math.PI / 2;
 
   var armRotation = new THREE.Quaternion();
-  var baseRotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(-1, 0, 0), Math.PI / 2);
   var offset = new THREE.Quaternion();
 
   var controllerConnected = false;
@@ -214,18 +226,18 @@ if (window.location.search) {
 
     socket.on('controller.ready', function(data) {
       document.querySelector('.intro-modal.controller').style.display = 'none';
-      document.querySelector('.viewer-prompt').style.display = 'block';
+      document.querySelector('.intro-modal').style.display = 'block';
       controllerConnected = true;
     });
 
     socket.on('controller.move', function(data) {
       if (!controllerConnected) {
         document.querySelector('.intro-modal.controller').style.display = 'none';
-        document.querySelector('.viewer-prompt').style.display = 'block';
+        document.querySelector('.intro-modal').style.display = 'block';
         controllerConnected = true;
       }
 
-      armRotation.copy(data).premultiply(baseRotation);
+      armRotation.copy(data);
       arm.quaternion.copy(armRotation).premultiply(offset);
     });
 
@@ -245,18 +257,13 @@ if (window.location.search) {
   var progress = roundTime;
   var points = 0;
 
-  var gameStarted = false;
-
-  // var testMaterial = new THREE.MeshLambertMaterial({ color: 0xbbbbbb, transparent: true, opacity: 0.5 });
-  // var test = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 12), testMaterial);
-  // scene.add(test);
-
   var render = function(time) {
-    if (started) {
-      if (sensor) {
-        player.quaternion.copy(sensor.getState().orientation);
-      }
+    if (vrData.enabled()) {
+      var data = vrData.getData();
+      player.quaternion.fromArray(data.orientation);
+    }
 
+    if (vrui.started) {
       var matrix = new THREE.Matrix4();
       matrix
         .multiply(head.parent.parent.parent.parent.matrix)
@@ -278,23 +285,15 @@ if (window.location.search) {
           buzzer.glow.setVisible(false);
           points += (buzzer.points || 0);
           buzzer.points = 0;
-          document.querySelector('.intro-modal.score .points').textContent = points;
-          document.querySelector('.intro-modal.score.stereo .points').textContent = points;
+          document.querySelector('.score .points').textContent = points;
+          document.querySelector('.score.duplicate .points').textContent = points;
         }
       });
-
 
       if (round <= 6) {
         var currentRoundTime = roundTime - round * 10;
 
         if (progress === 1) {
-
-          if (!gameStarted) {
-            document.querySelector('.score').style.display = 'block';
-            document.querySelector('.score.stereo').style.display = 'block';
-            gameStarted = true;
-          }
-
           var shuffled = _.shuffle(buzzers);
           shuffled.slice(0, 4).map(function(buzzer) {
             buzzer.button.material.color.set(0x00bb00)
@@ -334,7 +333,7 @@ if (window.location.search) {
     arm.position.add(across.clone().applyQuaternion(player.quaternion).multiplyScalar(0.25));
     arm.position.y -= 0.3;
 
-    if (cardboard && window.orientation !== 0) {
+    if (vrui.renderStereoscopic()) {
       effect.render(scene, camera);
     }
     else {
@@ -345,87 +344,4 @@ if (window.location.search) {
   };
 
   render(0);
-
-  document.addEventListener('DOMContentLoaded', function() {
-    FastClick.attach(document.body);
-  }, false);
-
-  document.querySelector('.with-viewer').addEventListener('click', function() {
-    chosen = true;
-    cardboard = true;
-    camera.fov = cardboard ? '60' : '45';
-    resize();
-    document.querySelector('.viewer-prompt').style.display = 'none';
-    document.querySelector('.cardboard-prompt').style.display = 'block';
-    document.querySelector('.cardboard-overlay').style.display = 'block';
-    updateOrientation();
-  });
-
-  document.querySelector('.no-viewer').addEventListener('click', function() {
-    chosen = true;
-    cardboard = false;
-    camera.fov = cardboard ? '60' : '45';
-    resize();
-    updateOrientation();
-    document.querySelector('.viewer-prompt').style.display = 'none';
-    document.querySelector('.phone-prompt').style.display = window.orientation === 0 ? 'block' : 'none';
-    if (window.orientation !== 0) {
-      document.querySelector('.intro-modal').style.display = 'none';
-      document.querySelector('.cardboard-overlay').style.display = 'none';
-      started = true;
-    }
-  });
-
-  document.querySelector('.cardboard-overlay').addEventListener('click', function() {
-    document.querySelector('.intro-modal').style.display = 'none';
-    document.querySelector('.intro-modal.stereo').style.display = 'none';
-    document.querySelector('.cardboard-overlay').style.display = 'none';
-    started = true;
-    updateOrientation();
-  });
-
-  document.querySelector('.cardboard-button').addEventListener('click', function() {
-    cardboard = !cardboard;
-    camera.fov = cardboard ? '60' : '45';
-
-    document.body.classList[cardboard && window.orientation !== 0 ? 'add' : 'remove']('stereo');
-
-    document.querySelector('.score').style.display = 'block';
-    document.querySelector('.score.stereo').style.display = 'block';
-    resize();
-  });
-
-  var updateOrientation = function() {
-    document.body.classList[cardboard && window.orientation !== 0 ? 'add' : 'remove']('stereo');
-
-    if (!started && chosen && !cardboard && window.orientation !== 0) {
-      document.querySelector('.intro-modal.place-phone').style.display = 'none';
-      document.querySelector('.intro-modal.place-phone.stereo').style.display = 'none';
-      document.querySelector('.cardboard-overlay').style.display = 'none';
-      started = true;
-      updateOrientation();
-    }
-
-    document.querySelector('.cardboard-button').style.display = window.orientation !== 0 && started ? 'block' : 'none';
-  };
-
-  window.addEventListener('orientationchange', updateOrientation, false);
-
-  var resize = function() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    effect.setSize(window.innerWidth, window.innerHeight);
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  }
-
-  window.addEventListener('resize', _.debounce(resize, 50), false);
-
-  var sensor;
-  navigator.getVRDevices().then(function(devices) {
-    sensor =_.find(devices, 'getState');
-  });
-
-  updateOrientation();
-  resize();
-
 }

@@ -1,5 +1,17 @@
-var THREE = require('../lib/three-utils')(require('three'));
+var THREE = require('three');
+require('../lib/three-utils');
+require('../lib/stereo-effect');
 var _ = require('lodash');
+var FastClick = require('fastclick');
+var VrData = require('../lib/vr-data');
+require('webvr-polyfill');
+var Noise = require('noisejs').Noise;
+
+var VRUI = require('../lib/vrui');
+
+new FastClick(document.body);
+
+var vrData = new VrData();
 
 var object = new THREE.Object3D();
 
@@ -9,7 +21,7 @@ texture.repeat.set(80, 40);
 
 var rockMaterial = new THREE.MeshLambertMaterial({ map: texture });
 
-var noise = new Noise(Math.random());
+var noise = new Noise();
 
 var sphere = new THREE.IcosahedronGeometry(100, 6);
 var planet = new THREE.Mesh(sphere, rockMaterial);
@@ -29,8 +41,6 @@ planet2.scale.y = 0.95;
 planet2.geometry.vertices.map(function(vertex) {
   vertex.multiplyScalar(1 + noise.simplex3(vertex.x / 5, vertex.y / 5, vertex.z / 5) * 0.01);
 });
-
-
 
 sphere.computeFaceNormals();
 sphere.computeVertexNormals();
@@ -102,50 +112,57 @@ var cube = new THREE.CubeGeometry(1500, 1500, 1500);
 var stars = new THREE.Mesh(cube, starsMaterial);
 object.add(stars);
 
-object.setVisible(false);
 scene.add(object);
-
-var chosen = true;
-var started = true;
-// var chosen = false;
-// var started = false;
 
 var pixelRatio = window.devicePixelRatio || 1;
 
 var renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(pixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(pixelRatio);
 renderer.setClearColor(0x000000);
-
-document.body.appendChild(renderer.domElement);
+document.querySelector('.wrapper').appendChild(renderer.domElement);
 
 var effect = new THREE.StereoEffect(renderer);
-effect.eyeSeparation = 0.5;
 effect.setSize(window.innerWidth, window.innerHeight);
+effect.setEyeSeparation(0.02);
+
+var resize = function() {
+  var height = window.innerHeight;
+  var width = window.innerWidth;
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  effect.setSize(width, height);
+  renderer.setSize(width, height);
+};
+
+window.addEventListener('resize', _.debounce(resize, 50), false);
+resize();
+
+var vrui = new VRUI(function(vrui) {
+  document.body.style.minHeight = (window.innerHeight + 100) + 'px';
+  camera.fov = vrui.stereoscopic ? '70' : '60';
+  resize();
+});
 
 var up = new THREE.Vector3(0, 1, 0);
 var forward = new THREE.Vector3(1, 0, 0);
 var across = new THREE.Vector3(0, 0, -1);
 
-var cardboard = false;
-
 var moving = false;
 
 var move = function(e) {
-  e.preventDefault();
   moving = true;
 };
 
 var stop = function(e) {
-  e.preventDefault();
   moving = false;
 };
 
-document.querySelector('canvas').addEventListener('mousedown', move);
-document.querySelector('canvas').addEventListener('mouseup', stop);
+document.querySelector('.wrapper').addEventListener('mousedown', move);
+document.querySelector('.wrapper').addEventListener('mouseup', stop);
 
-document.querySelector('canvas').addEventListener('touchstart', move);
-document.querySelector('canvas').addEventListener('touchend', stop);
+document.querySelector('.wrapper').addEventListener('touchstart', move);
+document.querySelector('.wrapper').addEventListener('touchend', stop);
 
 var cameraRotation = new THREE.Quaternion();
 var planetRotation = new THREE.Quaternion();
@@ -155,17 +172,13 @@ camera.velocity = new THREE.Vector3();
 camera.position.y = 105;
 
 var render = function(time) {
-  if (started) {
-    object.setVisible(true);
-  }
-
   planetRotation.setFromUnitVectors(up, camera.position.clone().normalize());
+  camera.quaternion.copy(planetRotation);
 
-  camera.quaternion.copy(planetRotation)
-
-  if (sensor) {
-    cameraRotation.copy(sensor.getState().orientation);
-    camera.quaternion.multiply(sensor.getState().orientation);
+  if (vrData.enabled()) {
+    var data = vrData.getData();
+    cameraRotation.fromArray(data.orientation);
+    camera.quaternion.multiply(cameraRotation);
   }
 
   stars.rotation.z = stars.rotation.z + Math.PI / 15000;
@@ -197,85 +210,9 @@ var render = function(time) {
     camera.velocity.set(0, 0, 0);
   }
 
-  cardboard && window.orientation !== 0 ? effect.render(scene, camera) : renderer.render(scene, camera);
+  vrui.renderStereoscopic() ? effect.render(scene, camera) : renderer.render(scene, camera);
 
   requestAnimationFrame(render);
 };
 
 render(0);
-
-document.addEventListener('DOMContentLoaded', function() {
-  FastClick.attach(document.body);
-}, false);
-
-document.querySelector('.with-viewer').addEventListener('click', function() {
-  chosen = true;
-  cardboard = true;
-  camera.fov = cardboard ? '60' : '45';
-  resize();
-  document.querySelector('.viewer-prompt').style.display = 'none';
-  document.querySelector('.cardboard-prompt').style.display = 'block';
-  document.querySelector('.cardboard-overlay').style.display = 'block';
-  updateOrientation();
-});
-
-document.querySelector('.no-viewer').addEventListener('click', function() {
-  chosen = true;
-  cardboard = false;
-  camera.fov = cardboard ? '60' : '45';
-  resize();
-  updateOrientation();
-  document.querySelector('.viewer-prompt').style.display = 'none';
-  document.querySelector('.phone-prompt').style.display = window.orientation === 0 ? 'block' : 'none';
-  if (window.orientation !== 0) {
-    document.querySelector('.intro-modal').style.display = 'none';
-    document.querySelector('.cardboard-overlay').style.display = 'none';
-    started = true;
-  }
-});
-
-document.querySelector('.cardboard-overlay').addEventListener('click', function() {
-  document.querySelector('.intro-modal').style.display = 'none';
-  document.querySelector('.intro-modal.stereo').style.display = 'none';
-  document.querySelector('.cardboard-overlay').style.display = 'none';
-  started = true;
-  updateOrientation();
-});
-
-document.querySelector('.cardboard-button').addEventListener('click', function() {
-  cardboard = !cardboard;
-  camera.fov = cardboard ? '60' : '45';
-  resize();
-});
-
-var updateOrientation = function() {
-  document.body.classList[cardboard && window.orientation !== 0 ? 'add' : 'remove']('stereo');
-
-  if (!started && chosen && !cardboard && window.orientation !== 0) {
-    document.querySelector('.intro-modal').style.display = 'none';
-    document.querySelector('.cardboard-overlay').style.display = 'none';
-    started = true;
-    updateOrientation();
-  }
-
-  document.querySelector('.cardboard-button').style.display = window.orientation !== 0 && started ? 'block' : 'none';
-};
-
-window.addEventListener('orientationchange', updateOrientation, false);
-
-var resize = function() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  effect.setSize(window.innerWidth, window.innerHeight);
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-window.addEventListener('resize', _.debounce(resize, 50), false);
-
-var sensor;
-navigator.getVRDevices().then(function(devices) {
-  sensor =_.find(devices, 'getState');
-});
-
-updateOrientation();
-resize();

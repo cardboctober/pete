@@ -1,5 +1,17 @@
-var THREE = require('../lib/three-utils')(require('three'));
+var THREE = require('three');
+require('../lib/three-utils');
+require('../lib/stereo-effect');
 var _ = require('lodash');
+var FastClick = require('fastclick');
+var VrData = require('../lib/vr-data');
+require('webvr-polyfill');
+var Noise = require('noisejs').Noise;
+
+var VRUI = require('../lib/vrui');
+
+new FastClick(document.body);
+
+var vrData = new VrData();
 
 var object = new THREE.Object3D();
 
@@ -7,20 +19,6 @@ var timeout = 0;
 var velocity = new THREE.Vector3();
 var height = 5;
 var stance = new THREE.Vector3();
-
-// var promise = new FULLTILT.getDeviceMotion();
-// promise.then(function(deviceMotion) {
-//   deviceMotion.start(function(data) {
-//     var a = deviceMotion.getScreenAdjustedAcceleration();
-//     velocity.add(new THREE.Vector3(a.y, a.x, a.z).multiplyScalar(0.1)).multiplyScalar(0.9);
-
-//     height = height - velocity.x;
-//     if (height < 5) height = 5;
-//     if (height > 10) height = 10;
-
-//     stance.set(0, height, 0);
-//   });
-// });
 
 var groundMaterial = new THREE.MeshPhongMaterial();
 groundMaterial.map = THREE.ImageUtils.loadTexture('grass.jpg');
@@ -98,13 +96,6 @@ bow.add(bottom);
 
 object.add(bow);
 
-object.setVisible(false);
-
-// var chosen = true;
-// var started = true;
-var chosen = false;
-var started = false;
-
 var scene = new THREE.Scene();
 var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 3000);
 scene.add(camera);
@@ -119,23 +110,38 @@ sunlight.position.set(-100, 60, 0);
 var pixelRatio = window.devicePixelRatio || 1;
 
 var renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(pixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(pixelRatio);
 renderer.setClearColor(0x000000);
-
-document.body.appendChild(renderer.domElement);
+document.querySelector('.wrapper').appendChild(renderer.domElement);
 
 var effect = new THREE.StereoEffect(renderer);
-effect.eyeSeparation = 0.25;
 effect.setSize(window.innerWidth, window.innerHeight);
+effect.setEyeSeparation(0.1);
+
+var resize = function() {
+  var height = window.innerHeight;
+  var width = window.innerWidth;
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  effect.setSize(width, height);
+  renderer.setSize(width, height);
+};
+
+window.addEventListener('resize', _.debounce(resize, 50), false);
+resize();
+
+var vrui = new VRUI(function(vrui) {
+  document.body.style.minHeight = (window.innerHeight + 100) + 'px';
+  camera.fov = vrui.stereoscopic ? '70' : '60';
+  resize();
+});
 
 var up = new THREE.Vector3(0, 1, 0);
 var forward = new THREE.Vector3(1, 0, 0);
 var across = new THREE.Vector3(0, 0, -1);
 
 scene.add(object);
-
-var cardboard = false;
 
 var createBalloon = function() {
   var geometry = new THREE.SphereGeometry(2, 32, 32);
@@ -188,7 +194,6 @@ var release = false;
 
 var draw = function(e) {
   drawing = true;
-  e.preventDefault();
 };
 
 var undraw = function(e) {
@@ -198,24 +203,20 @@ var undraw = function(e) {
     arrow.velocity.copy(across).applyQuaternion(camera.quaternion).multiplyScalar(drawLevel * 2);
     prevTip.set(0, 0, 0);
   }
-  e.preventDefault();
 };
 
-document.querySelector('canvas').addEventListener('mousedown', draw);
-document.querySelector('canvas').addEventListener('mouseup', undraw);
+document.querySelector('.wrapper').addEventListener('mousedown', draw);
+document.querySelector('.wrapper').addEventListener('mouseup', undraw);
 
-document.querySelector('canvas').addEventListener('touchstart', draw);
-document.querySelector('canvas').addEventListener('touchend', undraw);
+document.querySelector('.wrapper').addEventListener('touchstart', draw);
+document.querySelector('.wrapper').addEventListener('touchend', undraw);
 
 var prevTip = new THREE.Vector3();
 
 var render = function(time) {
-  if (started) {
-    object.setVisible(true);
-  }
-
-  if (sensor) {
-    camera.quaternion.copy(sensor.getState().orientation);
+  if (vrData.enabled()) {
+    var data = vrData.getData();
+    camera.quaternion.fromArray(data.orientation);
   }
 
   var direction = up.clone().applyQuaternion(camera.quaternion);
@@ -260,86 +261,9 @@ var render = function(time) {
     arrow.position.add(new THREE.Vector3(-0.5, -0.25, -0.5 + drawLevel).applyQuaternion(arrow.quaternion));
   }
 
-
-  cardboard && window.orientation !== 0 ? effect.render(scene, camera) : renderer.render(scene, camera);
+  vrui.renderStereoscopic() ? effect.render(scene, camera) : renderer.render(scene, camera);
 
   requestAnimationFrame(render);
 };
 
 render(0);
-
-document.addEventListener('DOMContentLoaded', function() {
-  FastClick.attach(document.body);
-}, false);
-
-document.querySelector('.with-viewer').addEventListener('click', function() {
-  chosen = true;
-  cardboard = true;
-  camera.fov = cardboard ? '60' : '45';
-  resize();
-  document.querySelector('.viewer-prompt').style.display = 'none';
-  document.querySelector('.cardboard-prompt').style.display = 'block';
-  document.querySelector('.cardboard-overlay').style.display = 'block';
-  updateOrientation();
-});
-
-document.querySelector('.no-viewer').addEventListener('click', function() {
-  chosen = true;
-  cardboard = false;
-  camera.fov = cardboard ? '60' : '45';
-  resize();
-  updateOrientation();
-  document.querySelector('.viewer-prompt').style.display = 'none';
-  document.querySelector('.phone-prompt').style.display = window.orientation === 0 ? 'block' : 'none';
-  if (window.orientation !== 0) {
-    document.querySelector('.intro-modal').style.display = 'none';
-    document.querySelector('.cardboard-overlay').style.display = 'none';
-    started = true;
-  }
-});
-
-document.querySelector('.cardboard-overlay').addEventListener('click', function() {
-  document.querySelector('.intro-modal').style.display = 'none';
-  document.querySelector('.intro-modal.stereo').style.display = 'none';
-  document.querySelector('.cardboard-overlay').style.display = 'none';
-  started = true;
-  updateOrientation();
-});
-
-document.querySelector('.cardboard-button').addEventListener('click', function() {
-  cardboard = !cardboard;
-  camera.fov = cardboard ? '60' : '45';
-  resize();
-});
-
-var updateOrientation = function() {
-  document.body.classList[cardboard && window.orientation !== 0 ? 'add' : 'remove']('stereo');
-
-  if (!started && chosen && !cardboard && window.orientation !== 0) {
-    document.querySelector('.intro-modal').style.display = 'none';
-    document.querySelector('.cardboard-overlay').style.display = 'none';
-    started = true;
-    updateOrientation();
-  }
-
-  document.querySelector('.cardboard-button').style.display = window.orientation !== 0 && started ? 'block' : 'none';
-};
-
-window.addEventListener('orientationchange', updateOrientation, false);
-
-var resize = function() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  effect.setSize(window.innerWidth, window.innerHeight);
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-window.addEventListener('resize', _.debounce(resize, 50), false);
-
-var sensor;
-navigator.getVRDevices().then(function(devices) {
-  sensor =_.find(devices, 'getState');
-});
-
-updateOrientation();
-resize();

@@ -1,7 +1,19 @@
-var THREE = require('../lib/three-utils')(require('three'));
-var detectSphereCollision = require('../lib/detect-sphere-collision');
+var THREE = require('three');
+require('../lib/three-utils');
+require('../lib/stereo-effect');
+require('../lib/mirror');
 var _ = require('lodash');
-var socket = io.connect('https://cardboctober-sockets.herokuapp.com/');
+var FastClick = require('fastclick');
+var VrData = require('../lib/vr-data');
+require('webvr-polyfill');
+var Noise = require('noisejs').Noise;
+var Tree = require('../lib/proctree');
+
+var VRUI = require('../lib/vrui');
+
+new FastClick(document.body);
+
+var vrData = new VrData();
 
 var up = new THREE.Vector3(0, 1, 0);
 var forward = new THREE.Vector3(1, 0, 0);
@@ -40,7 +52,6 @@ planeGeometry.computeVertexNormals();
 
 object.add(land);
 
-
 var scene = new THREE.Scene();
 var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000000);
 object.add(camera);
@@ -65,24 +76,35 @@ var cube = new THREE.CubeGeometry(1000, 1000, 1000);
 var stars = new THREE.Mesh(cube, starsMaterial);
 object.add(stars);
 
-var chosen = false;
-var started = false;
-
 var pixelRatio = window.devicePixelRatio || 1;
 
 var renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(pixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(pixelRatio);
 renderer.setClearColor(0x000000);
-
-document.body.appendChild(renderer.domElement);
+document.querySelector('.wrapper').appendChild(renderer.domElement);
 
 var effect = new THREE.StereoEffect(renderer);
-effect.eyeSeparation = 0.3;
 effect.setSize(window.innerWidth, window.innerHeight);
+effect.setEyeSeparation(0.1);
 
-var started = false;
-var cardboard = false;
+var resize = function() {
+  var height = window.innerHeight;
+  var width = window.innerWidth;
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  effect.setSize(width, height);
+  renderer.setSize(width, height);
+};
+
+window.addEventListener('resize', _.debounce(resize, 50), false);
+resize();
+
+var vrui = new VRUI(function(vrui) {
+  document.body.style.minHeight = (window.innerHeight + 100) + 'px';
+  camera.fov = vrui.stereoscopic ? '70' : '60';
+  resize();
+});
 
 camera.position.y = vertex.z + land.position.y + 0.75;
 
@@ -97,7 +119,6 @@ var blink = false;
 
 var start = function(e) {
   casting = true;
-  e.preventDefault();
 };
 
 var stop = function(e) {
@@ -108,14 +129,13 @@ var stop = function(e) {
   }
   casting = false;
   target = false;
-  e.preventDefault();
 };
 
-document.querySelector('canvas').addEventListener('mousedown', start);
-document.querySelector('canvas').addEventListener('mouseup', stop);
+document.querySelector('.wrapper').addEventListener('mousedown', start);
+document.querySelector('.wrapper').addEventListener('mouseup', stop);
 
-document.querySelector('canvas').addEventListener('touchstart', start);
-document.querySelector('canvas').addEventListener('touchend', stop);
+document.querySelector('.wrapper').addEventListener('touchstart', start);
+document.querySelector('.wrapper').addEventListener('touchend', stop);
 
 var glowMaterial = new THREE.MeshLambertMaterial();
 glowMaterial.transparent = true;
@@ -181,7 +201,6 @@ var createTree = function(index) {
 
   var tree = new THREE.Mesh(treeGeometry, new THREE.MeshLambertMaterial({ color: 0x6b4d33 }));
 
-  console.log(index);
   tree.position.set(index * 2 + 4, 0, 0);
   tree.position.applyQuaternion(new THREE.Quaternion().setFromAxisAngle(up, index));
   tree.quaternion.setFromAxisAngle(up, Math.random() * Math.PI * 2);
@@ -195,11 +214,12 @@ var createTree = function(index) {
 _.times(20, createTree);
 
 var render = function(time) {
-  if (started) {
-    if (sensor) {
-      camera.quaternion.copy(sensor.getState().orientation);
-    }
+  if (vrData.enabled()) {
+    var data = vrData.getData();
+    camera.quaternion.fromArray(data.orientation);
+  }
 
+  if (vrui.started) {
     if (blink) {
       camera.position.lerpVectors(blink[0], blink[1], blink[2]);
       blink[2] += 0.05;
@@ -227,7 +247,7 @@ var render = function(time) {
     }
   }
 
-  if (cardboard && window.orientation !== 0) {
+  if (vrui.renderStereoscopic()) {
     effect.render(scene, camera);
   }
   else {
@@ -238,79 +258,3 @@ var render = function(time) {
 };
 
 render(0);
-
-document.addEventListener('DOMContentLoaded', function() {
-  FastClick.attach(document.body);
-}, false);
-
-document.querySelector('.with-viewer').addEventListener('click', function() {
-  chosen = true;
-  cardboard = true;
-  camera.fov = cardboard ? '60' : '45';
-  resize();
-  document.querySelector('.viewer-prompt').style.display = 'none';
-  document.querySelector('.cardboard-prompt').style.display = 'block';
-  document.querySelector('.cardboard-overlay').style.display = 'block';
-  updateOrientation();
-});
-
-document.querySelector('.no-viewer').addEventListener('click', function() {
-  chosen = true;
-  cardboard = false;
-  camera.fov = cardboard ? '60' : '45';
-  resize();
-  updateOrientation();
-  document.querySelector('.viewer-prompt').style.display = 'none';
-  document.querySelector('.phone-prompt').style.display = window.orientation === 0 ? 'block' : 'none';
-  if (window.orientation !== 0) {
-    document.querySelector('.intro-modal').style.display = 'none';
-    document.querySelector('.cardboard-overlay').style.display = 'none';
-    started = true;
-  }
-});
-
-document.querySelector('.cardboard-overlay').addEventListener('click', function() {
-  document.querySelector('.intro-modal').style.display = 'none';
-  document.querySelector('.intro-modal.stereo').style.display = 'none';
-  document.querySelector('.cardboard-overlay').style.display = 'none';
-  started = true;
-  updateOrientation();
-});
-
-document.querySelector('.cardboard-button').addEventListener('click', function() {
-  cardboard = !cardboard;
-  camera.fov = cardboard ? '60' : '45';
-  resize();
-});
-
-var updateOrientation = function() {
-  document.body.classList[cardboard && window.orientation !== 0 ? 'add' : 'remove']('stereo');
-
-  if (!started && chosen && !cardboard && window.orientation !== 0) {
-    document.querySelector('.intro-modal').style.display = 'none';
-    document.querySelector('.cardboard-overlay').style.display = 'none';
-    started = true;
-    updateOrientation();
-  }
-
-  document.querySelector('.cardboard-button').style.display = window.orientation !== 0 && started ? 'block' : 'none';
-};
-
-window.addEventListener('orientationchange', updateOrientation, false);
-
-var resize = function() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  effect.setSize(window.innerWidth, window.innerHeight);
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-window.addEventListener('resize', _.debounce(resize, 50), false);
-
-var sensor;
-navigator.getVRDevices().then(function(devices) {
-  sensor =_.find(devices, 'getState');
-});
-
-updateOrientation();
-resize();

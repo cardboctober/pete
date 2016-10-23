@@ -1,45 +1,20 @@
-var THREE = require('../lib/three-utils')(require('three'));
-var detectSphereCollision = require('../lib/detect-sphere-collision');
+var THREE = require('three');
+require('../lib/three-utils');
+require('../lib/stereo-effect');
+require('../lib/three-water');
+require('../lib/postprocessing');
+require('../lib/three-model-loader');
 var _ = require('lodash');
+var FastClick = require('fastclick');
+var VrData = require('../lib/vr-data');
+require('webvr-polyfill');
+var Noise = require('noisejs').Noise;
 
-// Hacked version of Stereo effect
-THREE.StereoEffect = function ( renderer ) {
-  var _stereo = new THREE.StereoCamera();
-  _stereo.aspect = 0.5;
+var VRUI = require('../lib/vrui');
 
-  this.setEyeSeparation = function ( eyeSep ) {
-    _stereo.eyeSep = eyeSep;
-  };
+new FastClick(document.body);
 
-  this.setSize = function ( width, height ) {
-    renderer.setSize( width, height );
-  };
-
-  this.render = function ( scene, camera ) {
-    scene.updateMatrixWorld();
-
-    if ( camera.parent === null ) camera.updateMatrixWorld();
-
-    _stereo.update( camera );
-
-    var size = renderer.getSize();
-
-    renderer.clear();
-    renderer.setScissorTest( true );
-
-    renderer.setScissor( 0, 0, size.width / 2, size.height );
-    renderer.setViewport( 0, 0, size.width / 2, size.height );
-    renderer.callback( scene, _stereo.cameraL );
-
-    renderer.setScissor( size.width / 2, 0, size.width / 2, size.height );
-    renderer.setViewport( size.width / 2, 0, size.width / 2, size.height );
-    renderer.callback( scene, _stereo.cameraR );
-
-    renderer.setScissorTest( false );
-  };
-};
-
-var clock  = new THREE.Clock();
+var vrData = new VrData();
 
 var object = new THREE.Object3D();
 
@@ -146,20 +121,14 @@ var started = false;
 var pixelRatio = window.devicePixelRatio || 1;
 
 var renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(pixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(pixelRatio);
 renderer.setClearColor(0x000000);
-
-window.renderer = renderer;
+document.querySelector('.wrapper').appendChild(renderer.domElement);
 
 var composer = new THREE.EffectComposer(renderer);
 var renderPass = new THREE.RenderPass(scene, camera);
 composer.addPass(renderPass);
-// composer.getSize = renderer.getSize;
-// composer.clear = renderer.clear;
-// composer.setScissorTest = renderer.setScissorTest;
-// composer.setScissor = renderer.setScissor;
-// composer.setViewport = renderer.setViewport;
 
 var composer2 = new THREE.EffectComposer(renderer);
 composer2.addPass(new THREE.RenderPass(scene, camera));
@@ -181,11 +150,27 @@ var shaderPass = new THREE.ShaderPass(shader);
 shaderPass.renderToScreen = true;
 composer.addPass(shaderPass);
 
-document.body.appendChild(renderer.domElement);
-
 var effect = new THREE.StereoEffect(renderer);
-effect.eyeSeparation = 0.3;
 effect.setSize(window.innerWidth, window.innerHeight);
+effect.eyeSeparation = 0.5;
+
+var resize = function() {
+  var height = window.innerHeight;
+  var width = window.innerWidth;
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  effect.setSize(width, height);
+  renderer.setSize(width, height);
+};
+
+window.addEventListener('resize', _.debounce(resize, 50), false);
+resize();
+
+var vrui = new VRUI(function(vrui) {
+  document.body.style.minHeight = (window.innerHeight + 100) + 'px';
+  camera.fov = vrui.stereoscopic ? '70' : '60';
+  resize();
+});
 
 var up = new THREE.Vector3(0, 1, 0);
 var forward = new THREE.Vector3(1, 0, 0);
@@ -231,7 +216,6 @@ var blink = false;
 
 var start = function(e) {
   casting = true;
-  e.preventDefault();
 };
 
 var stop = function(e) {
@@ -242,14 +226,13 @@ var stop = function(e) {
   }
   casting = false;
   target = false;
-  e.preventDefault();
 };
 
-document.querySelector('canvas').addEventListener('mousedown', start);
-document.querySelector('canvas').addEventListener('mouseup', stop);
+document.querySelector('.wrapper').addEventListener('mousedown', start);
+document.querySelector('.wrapper').addEventListener('mouseup', stop);
 
-document.querySelector('canvas').addEventListener('touchstart', start);
-document.querySelector('canvas').addEventListener('touchend', stop);
+document.querySelector('.wrapper').addEventListener('touchstart', start);
+document.querySelector('.wrapper').addEventListener('touchend', stop);
 
 var glowMaterial = new THREE.MeshLambertMaterial();
 glowMaterial.transparent = true;
@@ -302,14 +285,12 @@ var render = function(time) {
   causticsMaterial.alphaMap = textures[Math.floor(i / 2)];
   i = (i + 1) % 64;
 
-  // var ÷theta = clock.getElapsedTime();
-  // MeshPhongCausticsMaterial.update(theta);
+  if (vrData.enabled()) {
+    var data = vrData.getData();
+    camera.quaternion.fromArray(data.orientation);
+  }
 
-  if (started) {
-    if (sensor) {
-      camera.quaternion.copy(sensor.getState().orientation);
-    }
-
+  if (vrui.started) {
     if (blink) {
       camera.position.lerpVectors(blink[0], blink[1], blink[2]);
       blink[2] += 0.05;
@@ -346,7 +327,7 @@ var render = function(time) {
   shaderPass.material.uniforms.viewProjectionInverseMatrix.value.copy(mCurrent);
   shaderPass.material.uniforms.previousViewProjectionMatrix.value.copy(mPrev);
 
-  if (cardboard && window.orientation !== 0) {
+  if (vrui.renderStereoscopic()) {
     renderer.callback = function(scene, camera) {
       water.render();
 
@@ -386,81 +367,3 @@ var render = function(time) {
 };
 
 render(0);
-
-document.addEventListener('DOMContentLoaded', function() {
-  FastClick.attach(document.body);
-}, false);
-
-document.querySelector('.with-viewer').addEventListener('click', function() {
-  chosen = true;
-  cardboard = true;
-  camera.fov = cardboard ? '60' : '45';
-  resize();
-  document.querySelector('.viewer-prompt').style.display = 'none';
-  document.querySelector('.cardboard-prompt').style.display = 'block';
-  document.querySelector('.cardboard-overlay').style.display = 'block';
-  updateOrientation();
-});
-
-document.querySelector('.no-viewer').addEventListener('click', function() {
-  chosen = true;
-  cardboard = false;
-  camera.fov = cardboard ? '60' : '45';
-  resize();
-  updateOrientation();
-  document.querySelector('.viewer-prompt').style.display = 'none';
-  document.querySelector('.phone-prompt').style.display = window.orientation === 0 ? 'block' : 'none';
-  if (window.orientation !== 0) {
-    document.querySelector('.intro-modal').style.display = 'none';
-    document.querySelector('.cardboard-overlay').style.display = 'none';
-    started = true;
-  }
-});
-
-document.querySelector('.cardboard-overlay').addEventListener('click', function() {
-  document.querySelector('.intro-modal').style.display = 'none';
-  document.querySelector('.intro-modal.stereo').style.display = 'none';
-  document.querySelector('.cardboard-overlay').style.display = 'none';
-  started = true;
-  updateOrientation();
-});
-
-document.querySelector('.cardboard-button').addEventListener('click', function() {
-  cardboard = !cardboard;
-  camera.fov = cardboard ? '60' : '45';
-  resize();
-});
-
-var updateOrientation = function() {
-  document.body.classList[cardboard && window.orientation !== 0 ? 'add' : 'remove']('stereo');
-
-  if (!started && chosen && !cardboard && window.orientation !== 0) {
-    document.querySelector('.intro-modal').style.display = 'none';
-    document.querySelector('.cardboard-overlay').style.display = 'none';
-    started = true;
-    updateOrientation();
-  }
-
-  document.querySelector('.cardboard-button').style.display = window.orientation !== 0 && started ? 'block' : 'none';
-};
-
-window.addEventListener('orientationchange', updateOrientation, false);
-
-var resize = function() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  effect.setSize(window.innerWidth, window.innerHeight);
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  composer.setSize(window.innerWidth, window.innerHeight);
-  composer2.setSize(window.innerWidth, window.innerHeight);
-}
-
-window.addEventListener('resize', _.debounce(resize, 50), false);
-
-var sensor;
-navigator.getVRDevices().then(function(devices) {
-  sensor =_.find(devices, 'getState');
-});
-
-updateOrientation();
-resize();

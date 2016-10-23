@@ -1,5 +1,17 @@
-var THREE = require('../lib/three-utils')(require('three'));
+var THREE = require('three');
+require('../lib/three-utils');
+require('../lib/stereo-effect');
 var _ = require('lodash');
+var FastClick = require('fastclick');
+var VrData = require('../lib/vr-data');
+require('webvr-polyfill');
+var Noise = require('noisejs').Noise;
+
+var VRUI = require('../lib/vrui');
+
+new FastClick(document.body);
+
+var vrData = new VrData();
 
 var object = new THREE.Object3D();
 
@@ -18,7 +30,7 @@ var moonMaterial = new THREE.MeshLambertMaterial({
   normalMap: THREE.ImageUtils.loadTexture('normal.jpg'),
 });
 
-var noise = new Noise(Math.random());
+var noise = new Noise();
 
 var moonRadius = 200;
 var sphere = new THREE.IcosahedronGeometry(moonRadius, 6);
@@ -117,37 +129,43 @@ var geometry = new THREE.Geometry();
 geometry.vertices.push(new THREE.Vector3(0, 200, 0));
 geometry.vertices.push(new THREE.Vector3(0, -200, 0));
 
-var line = new THREE.Line(geometry, material);
-
-// object.add(line);
-
 scene.add(object);
-
-var chosen = true;
-var started = true;
-// var chosen = false;
-// var started = false;
 
 var pixelRatio = window.devicePixelRatio || 1;
 
 var renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(pixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(pixelRatio);
 renderer.setClearColor(0x000000);
-
-document.body.appendChild(renderer.domElement);
+document.querySelector('.wrapper').appendChild(renderer.domElement);
 
 var effect = new THREE.StereoEffect(renderer);
-effect.eyeSeparation = 0.5;
 effect.setSize(window.innerWidth, window.innerHeight);
+effect.setEyeSeparation(0.1);
+
+var resize = function() {
+  var height = window.innerHeight;
+  var width = window.innerWidth;
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  effect.setSize(width, height);
+  renderer.setSize(width, height);
+};
+
+window.addEventListener('resize', _.debounce(resize, 50), false);
+resize();
+
+var vrui = new VRUI(function(vrui) {
+  document.body.style.minHeight = (window.innerHeight + 100) + 'px';
+  camera.fov = vrui.stereoscopic ? '70' : '60';
+  resize();
+});
 
 var up = new THREE.Vector3(0, 1, 0);
 var forward = new THREE.Vector3(1, 0, 0);
 var across = new THREE.Vector3(0, 0, -1);
 
 var acrossUp = up.clone().add(across).normalize();
-
-var cardboard = false;
 
 var moving = false;
 
@@ -195,25 +213,25 @@ var createSmoke = function(position, direction) {
 var direction = new THREE.Vector3();
 
 var move = function(e) {
-  e.preventDefault();
-  baseDirection = new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
-  moving = true;
+  if (vrui.started) {
+    baseDirection = new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+    moving = true;
 
-  if (cube.position.length() < moonRadius + 5) {
-    cube.velocity.add(cube.position.clone().setLength(0.2));
+    if (cube.position.length() < moonRadius + 5) {
+      cube.velocity.add(cube.position.clone().setLength(0.2));
+    }
   }
 };
 
 var stop = function(e) {
-  e.preventDefault();
   moving = false;
 };
 
-document.querySelector('canvas').addEventListener('mousedown', move);
-document.querySelector('canvas').addEventListener('mouseup', stop);
+document.querySelector('.wrapper').addEventListener('mousedown', move);
+document.querySelector('.wrapper').addEventListener('mouseup', stop);
 
-document.querySelector('canvas').addEventListener('touchstart', move);
-document.querySelector('canvas').addEventListener('touchend', stop);
+document.querySelector('.wrapper').addEventListener('touchstart', move);
+document.querySelector('.wrapper').addEventListener('touchend', stop);
 
 var render = function(time) {
   oldPosition.copy(cube.position);
@@ -237,11 +255,8 @@ var render = function(time) {
     }
   });
 
-  if (moving /*&& camera.position.length() < 110*/) {
-    // camera.velocity.add(lateralDirection.applyQuaternion(planetRotation).multiplyScalar(0.002));
-    //camera.quaternion.multiply(sensor.getState().orientation); camera.acceleration.add(camera.position.clone().normalize().multiplyScalar(0.00004));
+  if (moving) {
     cube.velocity.add(direction.multiplyScalar(0.005));
-    // cube.velocity.sub(gravityDirection.clone().multiplyScalar(1.2));
 
     var smoke = createSmoke(cube.position, direction.multiplyScalar(-1));
     smokes.push(smoke);
@@ -264,11 +279,10 @@ var render = function(time) {
 
   currentRotation.setFromUnitVectors(oldPosition.normalize(), cube.position.clone().normalize());
   planetRotation.premultiply(currentRotation);
-  // camera.quaternion.copy(planetRotation);
-  // camera.updateMatrix()
 
-  if (sensor) {
-    cameraRotation.copy(sensor.getState().orientation);
+  if (vrData.enabled()) {
+    var data = vrData.getData();
+    cameraRotation.fromArray(data.orientation);
   }
 
   var cameraDirection = across.clone().applyQuaternion(camera.quaternion);
@@ -276,107 +290,21 @@ var render = function(time) {
   var lateralRotation = new THREE.Quaternion().setFromUnitVectors(lateralDirection, up);
 
   stars.rotation.z = stars.rotation.z + Math.PI / 15000;
-  // stars.position.y = stars.position.y + 0.03;
   earth.rotation.z = earth.rotation.z + Math.PI / 15000;
-  // earth.position.y = earth.position.y + 0.03;
   clouds.rotation.y = clouds.rotation.x + Math.PI / 35000;
   clouds2.rotation.y = clouds2.rotation.y + Math.PI / 40000;
 
   earthWrapper.position.copy(cube.position);
   stars.position.copy(cube.position);
 
-  // var cameraUp = up.clone().applyQuaternion(planetRotation);
-
   direction = across.clone().applyQuaternion(cameraRotation).applyQuaternion(planetRotation);
 
   camera.quaternion.copy(cameraRotation);
   cube.quaternion.copy(planetRotation);
 
-  // Get a vector of the lateral direction of the camera
-  // var lateralDirection = direction//.cross(up).cross(up);
-
-  // var gravity = cube.position.clone().setLength(-10 / cube.position.lengthSq());
-  // cube.acceleration.copy(gravity);
-
-  cardboard && window.orientation !== 0 ? effect.render(scene, camera) : renderer.render(scene, camera);
+  vrui.renderStereoscopic() ? effect.render(scene, camera) : renderer.render(scene, camera);
 
   requestAnimationFrame(render);
 };
 
 render(0);
-
-document.addEventListener('DOMContentLoaded', function() {
-  FastClick.attach(document.body);
-}, false);
-
-document.querySelector('.with-viewer').addEventListener('click', function() {
-  chosen = true;
-  cardboard = true;
-  camera.fov = cardboard ? '60' : '45';
-  resize();
-  document.querySelector('.viewer-prompt').style.display = 'none';
-  document.querySelector('.cardboard-prompt').style.display = 'block';
-  document.querySelector('.cardboard-overlay').style.display = 'block';
-  updateOrientation();
-});
-
-document.querySelector('.no-viewer').addEventListener('click', function() {
-  chosen = true;
-  cardboard = false;
-  camera.fov = cardboard ? '60' : '45';
-  resize();
-  updateOrientation();
-  document.querySelector('.viewer-prompt').style.display = 'none';
-  document.querySelector('.phone-prompt').style.display = window.orientation === 0 ? 'block' : 'none';
-  if (window.orientation !== 0) {
-    document.querySelector('.intro-modal').style.display = 'none';
-    document.querySelector('.cardboard-overlay').style.display = 'none';
-    started = true;
-  }
-});
-
-document.querySelector('.cardboard-overlay').addEventListener('click', function() {
-  document.querySelector('.intro-modal').style.display = 'none';
-  document.querySelector('.intro-modal.stereo').style.display = 'none';
-  document.querySelector('.cardboard-overlay').style.display = 'none';
-  started = true;
-  updateOrientation();
-});
-
-document.querySelector('.cardboard-button').addEventListener('click', function() {
-  cardboard = !cardboard;
-  camera.fov = cardboard ? '60' : '45';
-  resize();
-});
-
-var updateOrientation = function() {
-  document.body.classList[cardboard && window.orientation !== 0 ? 'add' : 'remove']('stereo');
-
-  if (!started && chosen && !cardboard && window.orientation !== 0) {
-    document.querySelector('.intro-modal').style.display = 'none';
-    document.querySelector('.cardboard-overlay').style.display = 'none';
-    started = true;
-    updateOrientation();
-  }
-
-  document.querySelector('.cardboard-button').style.display = window.orientation !== 0 && started ? 'block' : 'none';
-};
-
-window.addEventListener('orientationchange', updateOrientation, false);
-
-var resize = function() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  effect.setSize(window.innerWidth, window.innerHeight);
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-window.addEventListener('resize', _.debounce(resize, 50), false);
-
-var sensor;
-navigator.getVRDevices().then(function(devices) {
-  sensor =_.find(devices, 'getState');
-});
-
-updateOrientation();
-resize();

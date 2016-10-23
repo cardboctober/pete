@@ -1,7 +1,22 @@
-var THREE = require('../lib/three-utils')(require('three'));
-var detectSphereCollision = require('../lib/detect-sphere-collision');
+var THREE = require('three');
+require('../lib/three-utils');
+require('../lib/stereo-effect');
+require('../lib/three-water');
+require('../lib/postprocessing');
+require('../lib/three-model-loader');
 var _ = require('lodash');
+var FastClick = require('fastclick');
+var VrData = require('../lib/vr-data');
+require('webvr-polyfill');
+var Noise = require('noisejs').Noise;
+var io = require('socket.io-client');
+
+var VRUI = require('../lib/vrui');
 var socket = io.connect('https://cardboctober-sockets.herokuapp.com/');
+
+new FastClick(document.body);
+
+var vrData = new VrData();
 
 var up = new THREE.Vector3(0, 1, 0);
 var forward = new THREE.Vector3(1, 0, 0);
@@ -19,12 +34,12 @@ if (window.location.search) {
   socket.on('connect', function() {
     socket.emit('controller.ready', window.location.search.replace(/^\?/, ''));
 
-    var promise = new FULLTILT.getDeviceOrientation({ type: 'world' });
-    promise.then(function(deviceOrientation) {
-      deviceOrientation.start(function(data) {
-        quaternion.copy(deviceOrientation.getScreenAdjustedQuaternion());
+    window.addEventListener('deviceorientation', function(event) {
+      if (vrData.enabled()) {
+        var data = vrData.getData();
+        quaternion.fromArray(data.orientation);
         controllerMove(quaternion);
-      });
+      }
     });
   });
 
@@ -33,24 +48,10 @@ if (window.location.search) {
     socket.emit('controller.reset', {});
   };
 
-  document.body.addEventListener('mousedown', tap);
-  document.body.addEventListener('touchstart', tap);
+  document.querySelector('.wrapper').addEventListener('mousedown', tap);
+  document.querySelector('.wrapper').addEventListener('touchstart', tap);
 
 } else {
-  var randomId = function() {
-    var possible = "abcdefghijklmnopqrstuvwxyz";
-    return _.times(6, function() {
-      return possible.charAt(Math.floor(Math.random() * possible.length));
-    }).join('');
-  };
-
-  var id = randomId();
-  document.querySelector('.intro-modal.base').style.display = 'block';
-  document.querySelector('.intro-modal.controller').style.display = 'block';
-  var link = document.querySelector('.intro-modal.controller .link');
-  link.href = "https://cardboctober.xyz/pete/16/?" + id;
-  link.textContent = "cardboctober.xyz/pete/16/?" + id;
-
   var object = new THREE.Object3D();
 
   var repeat = 60;
@@ -117,34 +118,48 @@ if (window.location.search) {
   var pixelRatio = window.devicePixelRatio || 1;
 
   var renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(pixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(pixelRatio);
   renderer.setClearColor(0x000000);
-
-  document.body.appendChild(renderer.domElement);
+  document.querySelector('.wrapper').appendChild(renderer.domElement);
 
   var effect = new THREE.StereoEffect(renderer);
-  effect.eyeSeparation = 0.3;
   effect.setSize(window.innerWidth, window.innerHeight);
+  effect.setEyeSeparation(0.1);
 
-  var started = false;
-  var cardboard = false;
+  var resize = function() {
+    var height = window.innerHeight;
+    var width = window.innerWidth;
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    effect.setSize(width, height);
+    renderer.setSize(width, height);
+  };
+
+  window.addEventListener('resize', _.debounce(resize, 50), false);
+  resize();
+
+  var vrui = new VRUI(function(vrui) {
+    document.body.style.minHeight = (window.innerHeight + 100) + 'px';
+    camera.fov = vrui.stereoscopic ? '70' : '60';
+    resize();
+  });
+
+  var randomId = function() {
+    var possible = "abcdefghijklmnopqrstuvwxyz";
+    return _.times(3, function() {
+      return possible.charAt(Math.floor(Math.random() * possible.length));
+    }).join('');
+  };
+
+  var id = randomId();
+  document.querySelector('.intro-modal').style.display = 'none';
+  document.querySelector('.intro-modal.controller').style.display = 'block';
+  var link = document.querySelector('.controller-prompt .link');
+  link.href = "https://cardboctober.xyz/pete/16/?" + id;
+  link.textContent = "cardboctober.xyz/pete/16/?" + id;
 
   player.position.y = vertex.z + land.position.y + 0.75;
-
-  var start = function(e) {
-    e.preventDefault();
-  };
-
-  var stop = function(e) {
-    e.preventDefault();
-  };
-
-  document.querySelector('canvas').addEventListener('mousedown', start);
-  document.querySelector('canvas').addEventListener('mouseup', stop);
-
-  document.querySelector('canvas').addEventListener('touchstart', start);
-  document.querySelector('canvas').addEventListener('touchend', stop);
 
   scene.add(object);
 
@@ -155,11 +170,8 @@ if (window.location.search) {
   arm.add(box);
   object.add(arm);
   box.position.y = 0.5;
-  // arm.position.z = -0.5;
-  // arm.position.y = -0.2;
 
   var armRotation = new THREE.Quaternion();
-  var baseRotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(-1, 0, 0), Math.PI / 2);
   var offset = new THREE.Quaternion();
 
   socket.on('connect', function() {
@@ -167,11 +179,11 @@ if (window.location.search) {
 
     socket.on('controller.ready', function(data) {
       document.querySelector('.intro-modal.controller').style.display = 'none';
-      document.querySelector('.viewer-prompt').style.display = 'block';
+      document.querySelector('.intro-modal').style.display = 'block';
     });
 
     socket.on('controller.move', function(data) {
-      armRotation.copy(data).premultiply(baseRotation);
+      armRotation.copy(data);
       arm.quaternion.copy(armRotation).premultiply(offset);
     });
 
@@ -186,17 +198,16 @@ if (window.location.search) {
   });
 
   var render = function(time) {
-    if (started) {
-      if (sensor) {
-        player.quaternion.copy(sensor.getState().orientation);
-      }
+    if (vrData.enabled()) {
+      var data = vrData.getData();
+      player.quaternion.fromArray(data.orientation);
     }
 
     arm.position.copy(player.position);
     arm.position.add(across.clone().applyQuaternion(player.quaternion).multiplyScalar(0.4));
     arm.position.y -= 0.3;
 
-    if (cardboard && window.orientation !== 0) {
+    if (vrui.renderStereoscopic()) {
       effect.render(scene, camera);
     }
     else {
@@ -207,81 +218,4 @@ if (window.location.search) {
   };
 
   render(0);
-
-  document.addEventListener('DOMContentLoaded', function() {
-    FastClick.attach(document.body);
-  }, false);
-
-  document.querySelector('.with-viewer').addEventListener('click', function() {
-    chosen = true;
-    cardboard = true;
-    camera.fov = cardboard ? '60' : '45';
-    resize();
-    document.querySelector('.viewer-prompt').style.display = 'none';
-    document.querySelector('.cardboard-prompt').style.display = 'block';
-    document.querySelector('.cardboard-overlay').style.display = 'block';
-    updateOrientation();
-  });
-
-  document.querySelector('.no-viewer').addEventListener('click', function() {
-    chosen = true;
-    cardboard = false;
-    camera.fov = cardboard ? '60' : '45';
-    resize();
-    updateOrientation();
-    document.querySelector('.viewer-prompt').style.display = 'none';
-    document.querySelector('.phone-prompt').style.display = window.orientation === 0 ? 'block' : 'none';
-    if (window.orientation !== 0) {
-      document.querySelector('.intro-modal').style.display = 'none';
-      document.querySelector('.cardboard-overlay').style.display = 'none';
-      started = true;
-    }
-  });
-
-  document.querySelector('.cardboard-overlay').addEventListener('click', function() {
-    document.querySelector('.intro-modal').style.display = 'none';
-    document.querySelector('.intro-modal.stereo').style.display = 'none';
-    document.querySelector('.cardboard-overlay').style.display = 'none';
-    started = true;
-    updateOrientation();
-  });
-
-  document.querySelector('.cardboard-button').addEventListener('click', function() {
-    cardboard = !cardboard;
-    camera.fov = cardboard ? '60' : '45';
-    resize();
-  });
-
-  var updateOrientation = function() {
-    document.body.classList[cardboard && window.orientation !== 0 ? 'add' : 'remove']('stereo');
-
-    if (!started && chosen && !cardboard && window.orientation !== 0) {
-      document.querySelector('.intro-modal').style.display = 'none';
-      document.querySelector('.cardboard-overlay').style.display = 'none';
-      started = true;
-      updateOrientation();
-    }
-
-    document.querySelector('.cardboard-button').style.display = window.orientation !== 0 && started ? 'block' : 'none';
-  };
-
-  window.addEventListener('orientationchange', updateOrientation, false);
-
-  var resize = function() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    effect.setSize(window.innerWidth, window.innerHeight);
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  }
-
-  window.addEventListener('resize', _.debounce(resize, 50), false);
-
-  var sensor;
-  navigator.getVRDevices().then(function(devices) {
-    sensor =_.find(devices, 'getState');
-  });
-
-  updateOrientation();
-  resize();
-
 }

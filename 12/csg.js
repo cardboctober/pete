@@ -594,7 +594,7 @@ CSG.Node.prototype = {
   }
 };
 
-window.ThreeBSP = (function() {
+var ThreeBSP = (function() {
 
   var ThreeBSP,
     EPSILON = 1e-5,
@@ -1142,6 +1142,7 @@ window.ThreeBSP = (function() {
     if ( this.back ) this.back.clipTo( node );
   };
 
-
   return ThreeBSP;
 })();
+
+module.exports = ThreeBSP;

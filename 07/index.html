@@ -4,81 +4,53 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Cardboctober - Day 7</title>
-    <style>
-      body { margin:0; background: black; overflow: hidden }
-      h1, h2 { font-family: arial; margin-top: 0; }
-      h2 { color: #555; font-weight: 400; }
-      @media only screen and (max-width: 440px)  {
-        h1 { font-size: 23px; }
-        h2 { font-size: 18px; }
-      }
-
-      .cardboard-button { position: absolute; bottom: 0; left: 50%; margin-left: -25px; cursor: pointer; padding: 10px; z-index: 1; }
-      .cardboard-button img { width: 40px; }
-
-      .intro-modal { position: absolute; left: 50%; top: 50px; width: 400px; }
-      .intro-modal .inner { position: relative; left: -200px; background: #ddd; padding: 20px; border-radius: 3px; }
-      .intro-modal .viewer-choice { width: 180px; float: left; padding: 20px; cursor: pointer; border-radius: 1px; }
-      .intro-modal .viewer-choice.no-viewer { padding-top: 37px; padding-bottom: 37px; }
-      .intro-modal .viewer-choice:hover { background: #3380FF; }
-      .intro-modal .landscape { width: 60%; margin: 0 20%; }
-      @media only screen and (max-width: 440px)  {
-        .intro-modal { width: 300px; top: 50px; }
-        .intro-modal .inner { left: -150px; }
-        .intro-modal h1 { font-size: 23px; }
-        .intro-modal .viewer-choice { width: 130px; }
-      }
-
-      .intro-modal.stereo { display: none; }
-      body.stereo .intro-modal { left: 25%; width: 200px; top: 70px; }
-      body.stereo .intro-modal h1 { font-size: 18px; }
-      body.stereo .intro-modal h2 { font-size: 15px; }
-      body.stereo .intro-modal .inner { left: -100px }
-      body.stereo .intro-modal.stereo { display: block; left: 75%; }
-
-      .cardboard-overlay { position: absolute; top: 0; left: 0; bottom: 0; right: 0; cursor: pointer; }
-
-      * { box-sizing: border-box; }
-      .clearfix:before, .clearfix:after { content: " "; display: table; }
-      .clearfix:after { clear: both; }
-      .unselectable { -webkit-touch-callout: none; -webkit-user-select: none; -khtml-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
-    </style>
+    <link rel="stylesheet" type="text/css" href="../css/vrui.css">
   </head>
   <body>
-    <div class="cardboard-button">
-      <img draggable="false" src="../images/cardboard-icon.svg" title="Virtual reality mode">
-    </div>
+    <div class="wrapper">
+      <div class="overlay"></div>
+      <div class="fullscreen-button" style="display: none;">
+        <img draggable="false" src="../images/fullscreen-icon.svg" title="Fullscreen mode">
+      </div>
 
-    <div class="intro-modal unselectable">
-      <div class="inner clearfix">
-        <div class="viewer-prompt">
-          <h1>Do you have a viewer?</h1>
-          <img draggable="false" src="../images/cardboard.png" title="VR Viewer" class="viewer-choice with-viewer">
-          <img draggable="false" src="../images/smartphone.svg" title="Smartphone" class="viewer-choice no-viewer">
-        </div>
-        <div class="cardboard-prompt" style="display: none;">
-          <h1>Place your phone in the viewer</h1>
-          <h2>Press the viewer button when ready</h2>
-        </div>
-        <div class="phone-prompt" style="display: none;">
-          <h1>Turn your phone sideways</h1>
-          <img src="../images/landscape.png" class="landscape">
+      <div class="cardboard-button" style="display: none;">
+        <img draggable="false" src="../images/cardboard-icon.svg" title="Virtual reality mode">
+      </div>
+
+      <div class="intro-modal unselectable">
+        <div class="inner clearfix">
+          <div class="fullscreen-prompt" style="display: none;">
+            <h1>Swipe up for fullscreen</h1>
+            <img draggable="false" src="../images/swipe-up.svg" class="swipe" title="Swipe up for fullscreen">
+          </div>
+
+          <div class="viewer-prompt" style="display: none;">
+            <h1>Do you have a VR viewer?</h1>
+            <div class="viewer-choices">
+              <div class="viewer-choice with-viewer">
+                <img draggable="false" src="../images/cardboard.png" title="VR Viewer">
+                <p>Yes</p>
+              </div>
+              <div class="viewer-choice no-viewer">
+                <img draggable="false" src="../images/device.png" title="Smartphone">
+                <p>No</p>
+              </div>
+            </div>
+          </div>
+          <div class="viewer-start-prompt" style="display: none;">
+            <h1>Place your phone in the viewer</h1>
+            <h2>Press the viewer button when ready</h2>
+          </div>
+          <div class="rotate-prompt" style="display: none;">
+            <h1>Turn your phone sideways</h1>
+            <img src="../images/landscape.png" class="landscape">
+          </div>
         </div>
       </div>
+
+      <div class="intro-modal duplicate unselectable"></div>
     </div>
 
-    <div class="intro-modal stereo unselectable">
-      <div class="inner clearfix">
-        <div class="cardboard-prompt">
-          <h1>Place your phone in the viewer</h1>
-          <h2>Press the viewer button when ready</h2>
-        </div>
-      </div>
-    </div>
-
-    <div class="cardboard-overlay" style="display: none;"></div>
-
-    <script src="../build/vendors.js"></script>
-    <script src="../build/07/app.js"></script>
+    <script src="build/app.js"></script>
   </body>
 </html>
