@@ -58,7 +58,7 @@
 	var io = __webpack_require__(15);
 
 	var VRUI = __webpack_require__(61);
-	var socket = io.connect('https://cardboctober-sockets.herokuapp.com/');
+	var socket = io.connect('https://cardboctober-sockets2.herokuapp.com/');
 
 	new FastClick(document.body);
 
