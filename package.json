@@ -9,6 +9,7 @@
     "gulp": "3.9.0",
     "gulp-cli": "1.1.0",
     "gulp-concat": "^2.6.0",
+    "lodash": "^4.16.4",
     "noisejs": "^2.1.0",
     "screenfull": "^3.0.2",
     "socket.io": "^1.5.0",
