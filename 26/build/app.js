@@ -435,8 +435,6 @@
 	    enemies.forEach(function(enemy, i) {
 	      if (!enemy.dead) {
 	        var timeRatio = Math.min(1, (counter - enemy.spawnTime) / (enemy.shootTime - enemy.spawnTime));
-	        // if (i === 0) console.log(timeRatio);
-	        if (i === 0) console.log(counter, enemy.spawnTime, enemy.shootTime);
 	        enemy.material.color.setRGB(timeRatio , 0, 1 - timeRatio);
 
 	        if (counter === enemy.shootTime) {
