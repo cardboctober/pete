@@ -12,7 +12,7 @@ var Noise = require('noisejs').Noise;
 var io = require('socket.io-client');
 
 var VRUI = require('../lib/vrui');
-var socket = io.connect('http://192.168.0.17:3000');
+var socket = io.connect('https://cardboctober-sockets.herokuapp.com/');
 
 new FastClick(document.body);
 
