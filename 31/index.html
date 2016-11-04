@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Cardboctober - Day 31</title>
+    <link rel="stylesheet" type="text/css" href="../css/vrui.css">
+  </head>
+  <body>
+    <div class="wrapper">
+      <div class="overlay"></div>
+      <div class="fullscreen-button" style="display: none;">
+        <img draggable="false" src="../images/fullscreen-icon.svg" title="Fullscreen mode">
+      </div>
+
+      <div class="cardboard-button" style="display: none;">
+        <img draggable="false" src="../images/cardboard-icon.svg" title="Virtual reality mode">
+      </div>
+
+      <div class="intro-modal unselectable">
+        <div class="inner clearfix">
+          <div class="fullscreen-prompt" style="display: none;">
+            <h1>Swipe up for fullscreen</h1>
+            <img draggable="false" src="../images/swipe-up.svg" class="swipe" title="Swipe up for fullscreen">
+          </div>
+
+          <div class="viewer-prompt" style="display: none;">
+            <h1>Do you have a VR viewer?</h1>
+            <div class="viewer-choices">
+              <div class="viewer-choice with-viewer">
+                <img draggable="false" src="../images/cardboard.png" title="VR Viewer">
+                <p>Yes</p>
+              </div>
+              <div class="viewer-choice no-viewer">
+                <img draggable="false" src="../images/device.png" title="Smartphone">
+                <p>No</p>
+              </div>
+            </div>
+          </div>
+          <div class="viewer-start-prompt" style="display: none;">
+            <h1>Place your phone in the viewer</h1>
+            <h2>Press the viewer button when ready</h2>
+          </div>
+          <div class="rotate-prompt" style="display: none;">
+            <h1>Turn your phone sideways</h1>
+            <img src="../images/landscape.png" class="landscape">
+          </div>
+        </div>
+      </div>
+
+      <div class="intro-modal duplicate unselectable"></div>
+    </div>
+
+    <script src="build/app.js"></script>
+  </body>
+</html>
