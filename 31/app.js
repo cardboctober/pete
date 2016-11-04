@@ -43,7 +43,7 @@ land.position.y = -1;
 object.add(land);
 
 var scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x000000, 2, 10);
+scene.fog = new THREE.Fog(0x000000, 0, 5);
 
 var camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000000);
 object.add(camera);
@@ -212,12 +212,15 @@ var render = function(time) {
   }
 
   if (Math.random() > 0.96) {
-    target.copy(THREE.Vector3.randomUnit()).multiplyScalar(2 + Math.random() * 2);
+    target.copy(THREE.Vector3.randomUnit()).multiplyScalar(3 + Math.random() * 2);
   }
 
   cat.velocity.add(cat.position.clone().sub(target).multiplyScalar(-0.00008));
+  if (cat.position.length < 3) {
+    cat.velocity.add(cat.position.multiplyScalar(0.00008));
+  }
   cat.velocity.y = 0;
-  cat.velocity.multiplyScalar(0.997);
+  cat.velocity.multiplyScalar(0.998);
   cat.position.add(cat.velocity);
   cat.quaternion.setFromUnitVectors(across, cat.velocity.clone().setLength(-1));
 
