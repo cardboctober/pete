@@ -151,8 +151,8 @@ if (window.location.search) {
   document.querySelector('.intro-modal').style.display = 'none';
   document.querySelector('.intro-modal.controller').style.display = 'block';
   var link = document.querySelector('.controller-prompt .link');
-  link.href = "https://cardboctober.xyz/pete/17/?" + id;
-  link.textContent = "cardboctober.xyz/pete/17/?" + id;
+  link.href = "https://cardboctober.github.io/pete/17/?" + id;
+  link.textContent = "cardboctober.github.io/pete/17/?" + id;
 
   var vertex = planeGeometry.vertices[height / 2 + width / 2 * height];
   player.position.y = vertex.z + land.position.y + 0.75;

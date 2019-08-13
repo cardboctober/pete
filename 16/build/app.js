@@ -202,8 +202,8 @@
 	  document.querySelector('.intro-modal').style.display = 'none';
 	  document.querySelector('.intro-modal.controller').style.display = 'block';
 	  var link = document.querySelector('.controller-prompt .link');
-	  link.href = "https://cardboctober.xyz/pete/16/?" + id;
-	  link.textContent = "cardboctober.xyz/pete/16/?" + id;
+	  link.href = "https://cardboctober.github.io/pete/16/?" + id;
+	  link.textContent = "cardboctober.github.io/pete/16/?" + id;
 
 	  player.position.y = vertex.z + land.position.y + 0.75;
 
